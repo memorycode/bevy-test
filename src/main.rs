@@ -4,12 +4,18 @@ use bevy::{
     render::camera::{self, ScalingMode},
     window::Cursor,
 };
+use bevy_asset_loader::{
+    asset_collection::AssetCollection,
+    loading_state::{config::ConfigureLoadingState, LoadingState, LoadingStateAppExt},
+};
 
+mod player;
 const DEFAULT_MOVEMENT_SPEED: f32 = 128.0;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 enum GameState {
     #[default]
+    LoadingScreen,
     Playing,
     Upgrading,
     GameOver,
@@ -39,6 +45,11 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.53, 0.53, 0.53)))
         .init_resource::<Game>()
         .init_state::<GameState>()
+        .add_loading_state(
+            LoadingState::new(GameState::LoadingScreen)
+                .continue_to_state(GameState::Playing)
+                .load_collection::<Assets>(),
+        )
         .add_systems(Startup, setup_camera)
         .add_systems(OnEnter(GameState::Playing), setup)
         .add_systems(
@@ -47,6 +58,18 @@ fn main() {
         )
         .add_systems(Update, draw_cursor)
         .run();
+}
+
+#[derive(AssetCollection, Resource)]
+struct Assets {
+    // if the sheet would have padding, you could set that with `padding_x` and `padding_y`.
+    // if there would be space between the top left corner of the sheet and the first sprite, you could configure that with `offset_x` and `offset_y`
+    // A texture atlas layout does not have a path as no asset file will be loaded for the layout
+    #[asset(texture_atlas_layout(tile_size_x = 12., tile_size_y = 12., columns = 12, rows = 12))]
+    layout: Handle<TextureAtlasLayout>,
+    // you can configure the sampler for the sprite sheet image
+    #[asset(path = "roguelikeChar_transparent.png")]
+    sheet: Handle<Image>,
 }
 
 #[derive(Component)]
@@ -147,27 +170,11 @@ fn follow_character(
     // camera_transform.translation.y = player_translation.y;
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
-) {
-    let texture = asset_server.load("roguelikeChar_transparent.png");
-    let layout = TextureAtlasLayout::from_grid(
-        Vec2::new(16.0, 16.0),
-        12,
-        12,
-        Some(Vec2::new(1.0, 1.0)),
-        None,
-    );
-    let texture_atlas_layout = texture_atlas_layouts.add(layout);
+fn setup(mut commands: Commands, assets: Res<Assets>) {
     commands.spawn((
         SpriteSheetBundle {
-            texture,
-            atlas: TextureAtlas {
-                layout: texture_atlas_layout,
-                index: 1,
-            },
+            texture: assets.sheet.clone(),
+            atlas: TextureAtlas::from(assets.layout.clone()),
             transform: Transform::from_scale(Vec3::splat(6.0)),
             ..default()
         },
