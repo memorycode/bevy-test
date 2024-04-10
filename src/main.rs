@@ -1,6 +1,11 @@
 use bevy::{
-    diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, render::camera::ScalingMode, window::Cursor,
+    diagnostic::FrameTimeDiagnosticsPlugin,
+    prelude::*,
+    render::camera::{self, ScalingMode},
+    window::Cursor,
 };
+
+const DEFAULT_MOVEMENT_SPEED: f32 = 128.0;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 enum GameState {
@@ -20,7 +25,7 @@ fn main() {
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Bevy Game".into(),
+                        title: "Bullet Hell".into(),
                         cursor: Cursor {
                             visible: false,
                             ..default()
@@ -36,7 +41,10 @@ fn main() {
         .init_state::<GameState>()
         .add_systems(Startup, setup_camera)
         .add_systems(OnEnter(GameState::Playing), setup)
-        .add_systems(FixedUpdate, (move_character, rotate_character).chain())
+        .add_systems(
+            FixedUpdate,
+            (move_character, follow_character, rotate_character).chain(),
+        )
         .add_systems(Update, draw_cursor)
         .run();
 }
@@ -60,26 +68,33 @@ fn setup_camera(mut commands: Commands) {
 }
 
 fn move_character(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
     mut query: Query<&mut Transform, With<Player>>,
     time: Res<Time>,
 ) {
-    let mut paddle_transform = query.single_mut();
-    let mut direction = 0.0;
-
-    if keyboard_input.pressed(KeyCode::ArrowLeft) {
-        direction -= 1.0;
+    let mut transform = query.single_mut();
+    let mut direction = Vec2::ZERO;
+    if keys.any_pressed([KeyCode::ArrowLeft, KeyCode::KeyA]) {
+        direction.x -= 1.;
     }
 
-    if keyboard_input.pressed(KeyCode::ArrowRight) {
-        direction += 1.0;
+    if keys.any_pressed([KeyCode::ArrowRight, KeyCode::KeyD]) {
+        direction.x += 1.;
     }
 
-    // Calculate the new horizontal paddle position based on player input
-    let new_paddle_position =
-        paddle_transform.translation.x + direction * 32.0 * time.delta_seconds();
+    if keys.any_pressed([KeyCode::ArrowUp, KeyCode::KeyW]) {
+        direction.y += 1.;
+    }
 
-    paddle_transform.translation.x = new_paddle_position;
+    if keys.any_pressed([KeyCode::ArrowDown, KeyCode::KeyS]) {
+        direction.y -= 1.;
+    }
+
+    direction = direction.normalize_or_zero();
+    let move_delta = direction * DEFAULT_MOVEMENT_SPEED * time.delta_seconds();
+
+    transform.translation.x = transform.translation.x + move_delta.x;
+    transform.translation.y = transform.translation.y + move_delta.y;
 }
 
 fn draw_cursor(
@@ -119,6 +134,17 @@ fn rotate_character(
 
     println!("{:?}", paddle_transform);
     paddle_transform.look_at(point.extend(z), Vec3::Y);*/
+}
+
+fn follow_character(
+    mut camera_query: Query<&mut Transform, (With<Camera>, Without<Player>)>,
+    player_query: Query<&Transform, With<Player>>,
+) {
+    let mut camera_transform = camera_query.single_mut();
+    let player_translation = player_query.single().translation;
+    camera_transform.translation = camera_transform.translation.lerp(player_translation, 0.5);
+    //camera_transform.translation.x = player_translation.x;
+    // camera_transform.translation.y = player_translation.y;
 }
 
 fn setup(
