@@ -89,8 +89,7 @@ struct Player;
 struct Health(f32);
 
 fn setup_camera(mut commands: Commands) {
-    let mut camera_bundle = Camera2dBundle::default();
-    //camera_bundle.projection.scaling_mode = ScalingMode::FixedVertical(10.);
+    let camera_bundle = Camera2dBundle::default();
     commands.spawn(camera_bundle);
 }
 
@@ -169,5 +168,5 @@ fn follow_character(
 ) {
     let mut camera_transform = camera_query.single_mut();
     let player_translation = player_query.single().translation;
-    camera_transform.translation = camera_transform.translation.lerp(player_translation, 0.5);
+    camera_transform.translation = camera_transform.translation.lerp(player_translation, 0.3);
 }
