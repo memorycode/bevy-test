@@ -8,6 +8,7 @@ use bevy_asset_loader::{
     asset_collection::AssetCollection,
     loading_state::{config::ConfigureLoadingState, LoadingState, LoadingStateAppExt},
 };
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 mod player;
 const DEFAULT_MOVEMENT_SPEED: f32 = 128.0;
@@ -33,7 +34,7 @@ fn main() {
                     primary_window: Some(Window {
                         title: "Bullet Hell".into(),
                         cursor: Cursor {
-                            visible: false,
+                            visible: true,
                             ..default()
                         },
                         ..default()
@@ -41,7 +42,7 @@ fn main() {
                     ..default()
                 }),
         )
-        .add_plugins(FrameTimeDiagnosticsPlugin::default())
+        .add_plugins(WorldInspectorPlugin::new())
         .insert_resource(ClearColor(Color::rgb(0.53, 0.53, 0.53)))
         .init_resource::<Game>()
         .init_state::<GameState>()
@@ -54,7 +55,9 @@ fn main() {
         .add_systems(OnEnter(GameState::Playing), setup)
         .add_systems(
             FixedUpdate,
-            (move_character, follow_character, rotate_character).chain(),
+            (move_character, follow_character, rotate_character)
+                .chain()
+                .run_if(in_state(GameState::Playing)),
         )
         .add_systems(Update, draw_cursor)
         .run();
@@ -163,11 +166,13 @@ fn follow_character(
     mut camera_query: Query<&mut Transform, (With<Camera>, Without<Player>)>,
     player_query: Query<&Transform, With<Player>>,
 ) {
+    if player_query.is_empty() {
+        //return;
+    }
+
     let mut camera_transform = camera_query.single_mut();
     let player_translation = player_query.single().translation;
     camera_transform.translation = camera_transform.translation.lerp(player_translation, 0.5);
-    //camera_transform.translation.x = player_translation.x;
-    // camera_transform.translation.y = player_translation.y;
 }
 
 fn setup(mut commands: Commands, assets: Res<Assets>) {
