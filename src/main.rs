@@ -9,6 +9,7 @@ use bevy_asset_loader::{
     loading_state::{config::ConfigureLoadingState, LoadingState, LoadingStateAppExt},
 };
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use player::PlayerPlugin;
 
 mod player;
 const DEFAULT_MOVEMENT_SPEED: f32 = 128.0;
@@ -43,6 +44,7 @@ fn main() {
                 }),
         )
         .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(PlayerPlugin)
         .insert_resource(ClearColor(Color::rgb(0.53, 0.53, 0.53)))
         .init_resource::<Game>()
         .init_state::<GameState>()
@@ -52,7 +54,6 @@ fn main() {
                 .load_collection::<Assets>(),
         )
         .add_systems(Startup, setup_camera)
-        .add_systems(OnEnter(GameState::Playing), setup)
         .add_systems(
             FixedUpdate,
             (move_character, follow_character, rotate_character)
@@ -166,24 +167,7 @@ fn follow_character(
     mut camera_query: Query<&mut Transform, (With<Camera>, Without<Player>)>,
     player_query: Query<&Transform, With<Player>>,
 ) {
-    if player_query.is_empty() {
-        //return;
-    }
-
     let mut camera_transform = camera_query.single_mut();
     let player_translation = player_query.single().translation;
     camera_transform.translation = camera_transform.translation.lerp(player_translation, 0.5);
-}
-
-fn setup(mut commands: Commands, assets: Res<Assets>) {
-    commands.spawn((
-        SpriteSheetBundle {
-            texture: assets.sheet.clone(),
-            atlas: TextureAtlas::from(assets.layout.clone()),
-            transform: Transform::from_scale(Vec3::splat(6.0)),
-            ..default()
-        },
-        Player,
-        Health(0.),
-    ));
 }
